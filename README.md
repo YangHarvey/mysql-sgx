@@ -32,3 +32,5 @@ This command starts the client (using `mysql`) in Occlum and test basic query SQ
 
 The network protocol between client and server uses uds(unix domain socket) by default.
 More configuration can be tuned and applied in `my.cnf`.
+
+/projects/linux-sgx/linux/installer/deb/local_repo_tool/../sgx_debian_local_repo
