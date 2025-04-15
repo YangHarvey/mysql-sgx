@@ -5,6 +5,7 @@ from pymysqlreplication.row_event import (
     UpdateRowsEvent,
     DeleteRowsEvent,
 )
+from pymysqlreplication.event import QueryEvent
 import socketserver
 import socket
 import threading
@@ -15,6 +16,7 @@ import os
 import logging
 import struct
 import datetime
+import decimal
 
 # --- Configuration ---
 MYSQL_SETTINGS = {
@@ -85,6 +87,8 @@ def default_serializer(obj):
             return obj.decode('utf-8', errors='replace')
          except Exception:
             return repr(obj) # Fallback to representation
+    elif isinstance(obj, decimal.Decimal): # **** 添加对 Decimal 的显式处理 ****
+        return str(obj)
     # Add other types if needed
     # raise TypeError(f"Type {type(obj)} not serializable")
     logger.warning(f"Type {type(obj)} not directly serializable, converting to string: {str(obj)}")
@@ -111,6 +115,11 @@ def format_event_to_json(event):
         event_data["rows"] = [{"before_values": row["before_values"], "after_values": row["after_values"]} for row in event.rows]
     elif isinstance(event, DeleteRowsEvent):
         event_data["rows"] = [{"values": row["values"]} for row in event.rows]
+    elif isinstance(event, QueryEvent):
+        event_data["query"] = event.query
+        event_data["schema"] = event.schema
+        event_data["execution_time"] = event.execution_time
+        # event_data["error_code"] = event.error_code # 0 if successful
     # Add more event types if needed (e.g., QueryEvent for DDL)
     # elif isinstance(event, QueryEvent):
     #     event_data["query"] = event.query
@@ -218,7 +227,7 @@ def run_binlog_listener():
     stream_params = {
         "connection_settings": MYSQL_SETTINGS,
         "server_id": REPLICATION_SERVER_ID,
-        "only_events": [WriteRowsEvent, UpdateRowsEvent, DeleteRowsEvent], # Add QueryEvent if needed
+        "only_events": [WriteRowsEvent, UpdateRowsEvent, DeleteRowsEvent, QueryEvent], # Add QueryEvent if needed
         "blocking": True,
         "resume_stream": True if last_log_file and last_log_pos else False,
         "log_file": last_log_file,
@@ -232,7 +241,7 @@ def run_binlog_listener():
         binlog_stream = BinLogStreamReader(**stream_params)
 
         for event in binlog_stream:
-            # logger.debug(f"Received binlog event: {type(event).__name__}")
+            logger.debug(f"Received binlog event: {type(event).__name__}")
             json_event_str = format_event_to_json(event)
             if json_event_str:
                 broadcast_event(json_event_str)

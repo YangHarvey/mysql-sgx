@@ -34,3 +34,27 @@ The network protocol between client and server uses uds(unix domain socket) by d
 More configuration can be tuned and applied in `my.cnf`.
 
 /projects/linux-sgx/linux/installer/deb/local_repo_tool/../sgx_debian_local_repo
+
+
+## 检查配置
+
+```sql
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'binlog_format';
+SHOW VARIABLES LIKE 'server_id';
+-- SHOW VARIABLES LIKE 'gtid_mode';
+```
+
+## 创建replicate用户
+```bash
+/usr/local/mysql/bin/mysql -h 127.0.0.1 -u root 
+create database benchbase;
+```
+
+```sql
+CREATE USER 'replicator'@'%' IDENTIFIED BY 'password';
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replicator'@'%';
+FLUSH PRIVILEGES;
+exit
+```
+
